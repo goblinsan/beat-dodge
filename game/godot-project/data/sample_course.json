@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "song": {
+    "id": "res://audio/sample_tone.wav",
+    "bpm": 120.0,
+    "duration_seconds": 8.0
+  },
+  "events": [
+    {"time_seconds": 1.0, "player": "player_1", "move": "dodge_left", "intensity": 2},
+    {"time_seconds": 1.5, "player": "player_2", "move": "dodge_right", "intensity": 2},
+    {"time_seconds": 2.0, "player": "player_1", "move": "jump", "intensity": 3},
+    {"time_seconds": 2.5, "player": "player_2", "move": "duck", "intensity": 3},
+    {"time_seconds": 3.0, "player": "player_1", "move": "dodge_right", "intensity": 4},
+    {"time_seconds": 3.5, "player": "player_2", "move": "jump", "intensity": 4},
+    {"time_seconds": 4.0, "player": "player_1", "move": "duck", "intensity": 3},
+    {"time_seconds": 4.5, "player": "player_2", "move": "dodge_left", "intensity": 3},
+    {"time_seconds": 5.0, "player": "player_1", "move": "jump", "intensity": 4},
+    {"time_seconds": 5.5, "player": "player_2", "move": "duck", "intensity": 5},
+    {"time_seconds": 6.0, "player": "player_1", "move": "dodge_left", "intensity": 4},
+    {"time_seconds": 6.5, "player": "player_2", "move": "dodge_right", "intensity": 4}
+  ]
+}
