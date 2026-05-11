@@ -34,7 +34,7 @@ SKELETON_CONNECTIONS: list[tuple[str, str]] = [
 
 #: BGR colours for Player 1 and Player 2.
 PLAYER_COLORS: dict[int, tuple[int, int, int]] = {
-    1: (255, 100, 0),   # blue-ish
+    1: (255, 100, 0),   # blue
     2: (0, 165, 255),   # orange
 }
 

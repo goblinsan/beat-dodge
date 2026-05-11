@@ -97,13 +97,6 @@ def main(argv: list[str] | None = None) -> None:
             print(json.dumps(frame_data), flush=True)
 
             if debug:
-                import cv2
-                from camera_input.overlay import (
-                    draw_lane_boundaries,
-                    draw_player_labels,
-                    draw_skeleton,
-                )
-
                 draw_lane_boundaries(frame)
                 draw_skeleton(frame, left_pose, player_id=1)
                 draw_skeleton(frame, right_pose, player_id=2)
@@ -117,7 +110,6 @@ def main(argv: list[str] | None = None) -> None:
                 break
 
     if debug:
-        import cv2
         cv2.destroyAllWindows()
 
 
