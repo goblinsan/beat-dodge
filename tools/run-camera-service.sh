@@ -9,4 +9,4 @@ if [[ ! -x "$VENV_PY" ]]; then
   exit 1
 fi
 
-exec "$VENV_PY" -m camera_input.cli --websocket --debug "$@"
+exec "$VENV_PY" -m camera_input.cli --websocket --debug --calibration-seconds 2 "$@"

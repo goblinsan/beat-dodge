@@ -126,6 +126,8 @@ Acceptance criteria:
 
 ## Phase 2 - WebSocket Camera Service
 
+Status: implemented in the current working tree.
+
 Goal: make camera actions available to Godot without piping stdout.
 
 Files likely touched:
@@ -155,6 +157,17 @@ Acceptance criteria:
   events.
 - A small test client can connect and receive JSON action/status messages.
 - Disconnecting Godot does not crash the camera service.
+
+Implemented notes:
+
+- `camera_input.server.serve_events` uses one producer loop and broadcasts the
+  same event stream to all connected WebSocket clients.
+- `capture-pose --websocket` supports `--host`, `--port`,
+  `--calibration-seconds`, `--calibration-frames`, and
+  `--websocket-send-interval`.
+- JSON-lines stdout mode remains the default for diagnostics and tests.
+- WebSocket client/reconnect tests are covered in
+  `services/camera-input/tests/test_server.py`.
 
 ## Phase 3 - Godot Camera Integration
 

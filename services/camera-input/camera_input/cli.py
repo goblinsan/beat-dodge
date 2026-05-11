@@ -88,11 +88,31 @@ def main(argv: list[str] | None = None) -> None:
         help="Visible standing frames to collect before action detection (default: 20).",
     )
     parser.add_argument(
+        "--calibration-seconds",
+        type=float,
+        default=None,
+        metavar="N",
+        help=(
+            "Approximate standing calibration time in seconds. "
+            "Overrides --calibration-frames using a 30 FPS estimate."
+        ),
+    )
+    parser.add_argument(
         "--min-action-confidence",
         type=float,
         default=0.55,
         metavar="N",
         help="Minimum action confidence to emit, 0-1 (default: 0.55).",
+    )
+    parser.add_argument(
+        "--websocket-send-interval",
+        type=float,
+        default=0.0,
+        metavar="SECONDS",
+        help=(
+            "Delay between WebSocket event broadcasts after each camera read "
+            "(default: 0.0)."
+        ),
     )
 
     args = parser.parse_args(argv)
@@ -116,8 +136,12 @@ def main(argv: list[str] | None = None) -> None:
             print(f"Warning: Cannot enable debug overlay: {exc}", file=sys.stderr)
             debug = False
 
+    calibration_frames = args.calibration_frames
+    if args.calibration_seconds is not None:
+        calibration_frames = max(1, int(round(args.calibration_seconds * 30.0)))
+
     classifier = MovementClassifier(
-        calibration_frames=args.calibration_frames,
+        calibration_frames=calibration_frames,
         min_confidence=args.min_action_confidence,
     )
 
@@ -135,7 +159,12 @@ def main(argv: list[str] | None = None) -> None:
                 from camera_input.server import run_event_server
 
                 try:
-                    run_event_server(next_event, host=args.host, port=args.port)
+                    run_event_server(
+                        next_event,
+                        host=args.host,
+                        port=args.port,
+                        send_interval_seconds=args.websocket_send_interval,
+                    )
                 except RuntimeError as exc:
                     print(f"Error: {exc}", file=sys.stderr)
                     sys.exit(1)

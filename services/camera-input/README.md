@@ -44,6 +44,9 @@ capture-pose --actions --debug
 
 # Serve gameplay action/status events to Godot
 capture-pose --websocket --debug
+
+# Use a two-second standing calibration period
+capture-pose --websocket --debug --calibration-seconds 2
 ```
 
 ## Output format
