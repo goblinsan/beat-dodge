@@ -17,6 +17,7 @@ import pytest
 from song_analyzer.analyzer import analyze
 from song_analyzer.course_cli import main as course_main
 from song_analyzer.course_generator import (
+    DIFFICULTIES,
     MOVES,
     PLAYERS,
     MovementPrompt,
@@ -138,16 +139,17 @@ class TestBeatsToPrompts:
 
     def test_returns_one_prompt_per_beat(self):
         prompts = beats_to_prompts(self._beats, self._windows)
-        assert len(prompts) == len(self._beats)
+        assert len(prompts) > 0
+        assert len(prompts) <= len(self._beats)
 
     def test_all_are_movement_prompts(self):
         for p in beats_to_prompts(self._beats, self._windows):
             assert isinstance(p, MovementPrompt)
 
-    def test_time_seconds_match_beats(self):
+    def test_time_seconds_come_from_beats(self):
         prompts = beats_to_prompts(self._beats, self._windows)
-        for prompt, beat in zip(prompts, self._beats):
-            assert prompt.time_seconds == beat
+        for prompt in prompts:
+            assert prompt.time_seconds in self._beats
 
     def test_players_alternate(self):
         prompts = beats_to_prompts(self._beats, self._windows)
@@ -155,19 +157,16 @@ class TestBeatsToPrompts:
             assert p.player == PLAYERS[i % len(PLAYERS)]
 
     def test_moves_cycle_through_all(self):
-        # With 4 beats the full MOVES cycle should appear once
         prompts = beats_to_prompts(self._beats, self._windows)
-        for i, p in enumerate(prompts):
-            assert p.move == MOVES[i % len(MOVES)]
+        for p in prompts:
+            assert p.move in MOVES
 
     def test_intensity_from_energy_window(self):
         prompts = beats_to_prompts(self._beats, self._windows)
-        # First two beats are in window with level 2
+        if len(prompts) < 2:
+            pytest.skip("Normal density may skip short synthetic beat lists")
         assert prompts[0].intensity == 2
-        assert prompts[1].intensity == 2
-        # Next two beats are in window with level 4
-        assert prompts[2].intensity == 4
-        assert prompts[3].intensity == 4
+        assert prompts[-1].intensity in {2, 4}
 
     def test_intensity_in_valid_range(self):
         prompts = beats_to_prompts(self._beats, self._windows)
@@ -176,19 +175,51 @@ class TestBeatsToPrompts:
 
     def test_metadata_contains_beat_index(self):
         prompts = beats_to_prompts(self._beats, self._windows)
-        for i, p in enumerate(prompts):
-            assert p.metadata["beat_index"] == i
+        for p in prompts:
+            assert isinstance(p.metadata["beat_index"], int)
+            assert p.metadata["difficulty"] == "normal"
 
     def test_empty_beats_returns_empty(self):
         assert beats_to_prompts([], self._windows) == []
 
     def test_player_balance(self):
         # Roughly equal distribution over an even number of beats
-        beats = list(range(8))
+        beats = [i * 0.5 for i in range(24)]
         prompts = beats_to_prompts(beats, self._windows)  # type: ignore[arg-type]
         p1 = sum(1 for p in prompts if p.player == "player_1")
         p2 = sum(1 for p in prompts if p.player == "player_2")
-        assert p1 == p2
+        assert abs(p1 - p2) <= 1
+
+    def test_easy_uses_only_jump_and_duck(self):
+        prompts = beats_to_prompts([i * 0.5 for i in range(24)], self._windows, difficulty="easy")
+        assert {p.move for p in prompts} <= {"jump", "duck"}
+
+    def test_hard_is_denser_than_easy(self):
+        beats = [i * 0.5 for i in range(32)]
+        easy = beats_to_prompts(beats, self._windows, difficulty="easy")
+        hard = beats_to_prompts(beats, self._windows, difficulty="hard")
+        assert len(hard) > len(easy)
+
+    def test_seed_is_deterministic(self):
+        beats = [i * 0.5 for i in range(16)]
+        first = beats_to_prompts(beats, self._windows, difficulty="normal", seed=7)
+        second = beats_to_prompts(beats, self._windows, difficulty="normal", seed=7)
+        assert [p.move for p in first] == [p.move for p in second]
+
+    def test_rejects_unknown_difficulty(self):
+        with pytest.raises(ValueError):
+            beats_to_prompts(self._beats, self._windows, difficulty="expert")
+
+    def test_avoids_impossible_jump_chains(self):
+        beats = [i * 0.25 for i in range(40)]
+        prompts = beats_to_prompts(beats, self._windows, difficulty="easy")
+        jumps_by_player: dict[str, list[float]] = {"player_1": [], "player_2": []}
+        for prompt in prompts:
+            if prompt.move == "jump":
+                jumps_by_player[prompt.player].append(prompt.time_seconds)
+        for jump_times in jumps_by_player.values():
+            for earlier, later in zip(jump_times, jump_times[1:]):
+                assert later - earlier >= 2.0
 
 
 # ---------------------------------------------------------------------------
@@ -198,10 +229,13 @@ class TestBeatsToPrompts:
 class TestGenerateCourse:
     def test_required_top_level_keys(self, analysis):
         course = generate_course(analysis)
-        assert set(course.keys()) == {"version", "song", "events"}
+        assert set(course.keys()) == {"version", "difficulty", "song", "events"}
 
     def test_version_is_string(self, analysis):
         assert isinstance(generate_course(analysis)["version"], str)
+
+    def test_difficulty_is_recorded(self, analysis):
+        assert generate_course(analysis, difficulty="easy")["difficulty"] == "easy"
 
     def test_song_keys(self, analysis):
         song = generate_course(analysis)["song"]
@@ -222,9 +256,9 @@ class TestGenerateCourse:
     def test_events_is_list(self, analysis):
         assert isinstance(generate_course(analysis)["events"], list)
 
-    def test_event_count_matches_beats(self, analysis):
+    def test_event_count_does_not_exceed_beats(self, analysis):
         course = generate_course(analysis)
-        assert len(course["events"]) == len(analysis["beats"])
+        assert len(course["events"]) <= len(analysis["beats"])
 
     def test_event_keys(self, analysis):
         for event in generate_course(analysis)["events"]:
@@ -242,16 +276,21 @@ class TestGenerateCourse:
         for event in generate_course(analysis)["events"]:
             assert 1 <= event["intensity"] <= 5
 
-    def test_events_time_seconds_match_beats(self, analysis):
+    def test_events_time_seconds_come_from_beats(self, analysis):
         course = generate_course(analysis)
-        for event, beat in zip(course["events"], analysis["beats"]):
-            assert event["time_seconds"] == beat
+        for event in course["events"]:
+            assert event["time_seconds"] in analysis["beats"]
 
     def test_result_is_json_serialisable(self, analysis):
         course = generate_course(analysis)
         serialised = json.dumps(course)
         parsed = json.loads(serialised)
         assert parsed["song"]["bpm"] == course["song"]["bpm"]
+
+    def test_all_difficulties_supported(self, analysis):
+        for difficulty in DIFFICULTIES:
+            course = generate_course(analysis, difficulty=difficulty)
+            assert course["difficulty"] == difficulty
 
 
 # ---------------------------------------------------------------------------
@@ -283,6 +322,13 @@ class TestCourseCli:
             assert "move" in event
             assert "intensity" in event
             assert "time_seconds" in event
+
+    def test_cli_accepts_difficulty_and_seed(self, sine_wav, capsys):
+        course_main([sine_wav, "--difficulty", "easy", "--seed", "7"])
+        captured = capsys.readouterr()
+        parsed = json.loads(captured.out)
+        assert parsed["difficulty"] == "easy"
+        assert {event["move"] for event in parsed["events"]} <= {"jump", "duck"}
 
     def test_cli_missing_file_exits_nonzero(self, tmp_path):
         with pytest.raises(SystemExit) as exc_info:

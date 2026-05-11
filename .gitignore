@@ -18,6 +18,7 @@ songs/*
 !songs/.gitkeep
 courses/generated/*
 !courses/generated/.gitkeep
+!courses/generated/sample_course.json
 
 # OS/editor noise
 .DS_Store

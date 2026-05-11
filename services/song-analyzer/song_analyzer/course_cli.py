@@ -40,6 +40,18 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help="Write JSON output to FILE instead of stdout.",
     )
+    parser.add_argument(
+        "--difficulty",
+        choices=("easy", "normal", "hard"),
+        default="normal",
+        help="Course difficulty and prompt density (default: normal).",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Optional deterministic seed for move selection.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -49,7 +61,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    course = generate_course(analysis)
+    course = generate_course(analysis, difficulty=args.difficulty, seed=args.seed)
     output = json.dumps(course, indent=2)
 
     if args.output:

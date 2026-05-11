@@ -41,6 +41,9 @@ generate-course path/to/song.mp3
 
 # Write course JSON to a file
 generate-course path/to/song.mp3 --output courses/generated/my_course.json
+
+# Generate an easier living-room course with repeatable move choices
+generate-course path/to/song.mp3 --difficulty easy --seed 7 --output courses/generated/easy.json
 ```
 
 ## Output format
@@ -70,6 +73,7 @@ at a beat-aligned timestamp.
 ```json
 {
   "version": "1.0.0",
+  "difficulty": "normal",
   "song": {
     "id": "song.mp3",
     "bpm": 128.0,

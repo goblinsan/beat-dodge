@@ -1,0 +1,41 @@
+{
+  "version": "1.0.0",
+  "difficulty": "easy",
+  "song": {
+    "id": "res://audio/sample_tone.wav",
+    "bpm": 120.0,
+    "duration_seconds": 8.0
+  },
+  "events": [
+    {
+      "time_seconds": 1.0,
+      "player": "player_1",
+      "move": "jump",
+      "intensity": 2
+    },
+    {
+      "time_seconds": 3.0,
+      "player": "player_2",
+      "move": "duck",
+      "intensity": 3
+    },
+    {
+      "time_seconds": 4.0,
+      "player": "player_1",
+      "move": "jump",
+      "intensity": 4
+    },
+    {
+      "time_seconds": 5.5,
+      "player": "player_2",
+      "move": "duck",
+      "intensity": 4
+    },
+    {
+      "time_seconds": 7.0,
+      "player": "player_1",
+      "move": "duck",
+      "intensity": 3
+    }
+  ]
+}

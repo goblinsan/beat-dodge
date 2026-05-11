@@ -275,6 +275,8 @@ Implemented notes:
 
 ## Phase 5 - Course Generation Needed For Play
 
+Status: implemented in the current working tree.
+
 Goal: generate courses that are fun and physically possible for kids.
 
 Files likely touched:
@@ -307,6 +309,18 @@ Acceptance criteria:
 - Generated easy courses are playable by kids using camera input.
 - The generator still produces schema-valid JSON.
 - Both players receive roughly equal activity.
+
+Implemented notes:
+
+- `generate-course` now accepts `--difficulty easy|normal|hard` and
+  optional `--seed` for repeatable move selection.
+- Prompt density is energy-aware, with lower density in low-energy windows and
+  higher density in high-energy windows.
+- The generator avoids obvious hard movement chains such as repeated jumps too
+  close together, rapid jump/duck reversals, and fast left/right flips.
+- Generated courses record top-level `difficulty`.
+- `courses/generated/sample_course.json` is a committed easy sample using the
+  non-copyright sample audio path.
 
 ## Phase 6 - One-Command Local Demo
 

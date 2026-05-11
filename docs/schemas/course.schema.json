@@ -10,6 +10,11 @@
       "type": "string",
       "description": "Schema-compatible course format version."
     },
+    "difficulty": {
+      "type": "string",
+      "enum": ["easy", "normal", "hard"],
+      "description": "Difficulty profile used to generate prompt density and move selection."
+    },
     "song": {
       "type": "object",
       "required": ["id", "bpm", "duration_seconds"],

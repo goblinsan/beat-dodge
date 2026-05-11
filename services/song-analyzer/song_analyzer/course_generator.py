@@ -1,21 +1,9 @@
-"""Course generation: convert song analysis into a Beat Dodge course JSON.
-
-Two public interfaces
----------------------
-beats_to_prompts(beats, energy_windows) -> list[MovementPrompt]
-    Convert raw beat timestamps and energy data into an ordered list of
-    movement prompts, alternating between the two players and cycling through
-    the supported kid-friendly moves.
-
-generate_course(analysis) -> dict
-    Wrap the full pipeline: take the dict produced by
-    ``song_analyzer.analyzer.analyze()`` and return a course document that
-    conforms to ``docs/schemas/course.schema.json``.
-"""
+"""Course generation: convert song analysis into a Beat Dodge course JSON."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import random
 from typing import Any
 
 #: Kid-friendly movement actions a player can perform.
@@ -23,6 +11,60 @@ MOVES: list[str] = ["dodge_left", "dodge_right", "jump", "duck"]
 
 #: The two players supported by the game.
 PLAYERS: list[str] = ["player_1", "player_2"]
+
+DIFFICULTIES: tuple[str, ...] = ("easy", "normal", "hard")
+
+
+@dataclass(frozen=True)
+class DifficultySettings:
+    """Course density and move-palette settings for one difficulty."""
+
+    name: str
+    low_energy_stride: int
+    medium_energy_stride: int
+    high_energy_stride: int
+    moves: tuple[str, ...]
+    min_same_player_gap_seconds: float
+    min_jump_gap_seconds: float
+    min_jump_duck_gap_seconds: float
+    min_dodge_flip_gap_seconds: float
+
+
+DIFFICULTY_SETTINGS: dict[str, DifficultySettings] = {
+    "easy": DifficultySettings(
+        name="easy",
+        low_energy_stride=5,
+        medium_energy_stride=4,
+        high_energy_stride=3,
+        moves=("jump", "duck"),
+        min_same_player_gap_seconds=1.2,
+        min_jump_gap_seconds=2.0,
+        min_jump_duck_gap_seconds=1.6,
+        min_dodge_flip_gap_seconds=1.2,
+    ),
+    "normal": DifficultySettings(
+        name="normal",
+        low_energy_stride=4,
+        medium_energy_stride=3,
+        high_energy_stride=2,
+        moves=("jump", "duck", "dodge_left", "dodge_right"),
+        min_same_player_gap_seconds=0.9,
+        min_jump_gap_seconds=1.5,
+        min_jump_duck_gap_seconds=1.2,
+        min_dodge_flip_gap_seconds=0.9,
+    ),
+    "hard": DifficultySettings(
+        name="hard",
+        low_energy_stride=3,
+        medium_energy_stride=2,
+        high_energy_stride=1,
+        moves=("jump", "duck", "dodge_left", "dodge_right"),
+        min_same_player_gap_seconds=0.45,
+        min_jump_gap_seconds=1.0,
+        min_jump_duck_gap_seconds=0.8,
+        min_dodge_flip_gap_seconds=0.6,
+    ),
+}
 
 
 @dataclass
@@ -72,6 +114,66 @@ def _energy_level_at(
     return 1
 
 
+def _settings_for(difficulty: str) -> DifficultySettings:
+    try:
+        return DIFFICULTY_SETTINGS[difficulty]
+    except KeyError as exc:
+        valid = ", ".join(DIFFICULTIES)
+        raise ValueError(f"Unknown difficulty {difficulty!r}; expected one of: {valid}") from exc
+
+
+def _stride_for_energy(level: int, settings: DifficultySettings) -> int:
+    if level >= 4:
+        return settings.high_energy_stride
+    if level <= 2:
+        return settings.low_energy_stride
+    return settings.medium_energy_stride
+
+
+def _move_allowed(
+    move: str,
+    player: str,
+    beat_time: float,
+    player_last_prompt: dict[str, MovementPrompt],
+    settings: DifficultySettings,
+) -> bool:
+    previous = player_last_prompt.get(player)
+    if previous is None:
+        return True
+
+    gap = beat_time - previous.time_seconds
+    if gap < settings.min_same_player_gap_seconds:
+        return False
+    if move == "jump" and previous.move == "jump" and gap < settings.min_jump_gap_seconds:
+        return False
+    if {move, previous.move} == {"jump", "duck"} and gap < settings.min_jump_duck_gap_seconds:
+        return False
+    if (
+        move in {"dodge_left", "dodge_right"}
+        and previous.move in {"dodge_left", "dodge_right"}
+        and move != previous.move
+        and gap < settings.min_dodge_flip_gap_seconds
+    ):
+        return False
+    return True
+
+
+def _choose_move(
+    candidate_moves: list[str],
+    player: str,
+    beat_time: float,
+    player_last_prompt: dict[str, MovementPrompt],
+    settings: DifficultySettings,
+) -> str:
+    for move in candidate_moves:
+        if _move_allowed(move, player, beat_time, player_last_prompt, settings):
+            return move
+    previous = player_last_prompt.get(player)
+    if previous is not None and previous.move in candidate_moves:
+        return previous.move
+    return candidate_moves[0]
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -79,45 +181,54 @@ def _energy_level_at(
 def beats_to_prompts(
     beats: list[float],
     energy_windows: list[dict[str, Any]],
+    difficulty: str = "normal",
+    seed: int | None = None,
 ) -> list[MovementPrompt]:
     """Convert beat timestamps into balanced two-player movement prompts.
 
-    Assignment rules
-    ~~~~~~~~~~~~~~~~
-    - **Players** alternate on every beat (even index → player_1, odd → player_2).
-    - **Moves** cycle through :data:`MOVES` in order, giving each player a
-      variety of kid-friendly actions rather than repeating the same move.
-    - **Intensity** is the energy level of the 1-second window that contains
-      the beat timestamp.
-
-    Parameters
-    ----------
-    beats:
-        Ordered list of beat timestamps (seconds) from song analysis.
-    energy_windows:
-        List of energy-window dicts from song analysis, each containing
-        ``start_seconds``, ``end_seconds``, and ``level``.
-
-    Returns
-    -------
-    list[MovementPrompt]
-        One prompt per beat, in chronological order.
+    Density is difficulty- and energy-aware.  Low-energy windows skip more
+    beats, high-energy windows allow denser prompts.  Per-player movement rules
+    avoid the most obvious physically frustrating chains for kids.
     """
+    settings = _settings_for(difficulty)
+    rng = random.Random(seed)
     prompts: list[MovementPrompt] = []
+    player_last_prompt: dict[str, MovementPrompt] = {}
+
     for i, beat_time in enumerate(beats):
-        prompts.append(
-            MovementPrompt(
-                time_seconds=beat_time,
-                player=PLAYERS[i % len(PLAYERS)],
-                move=MOVES[i % len(MOVES)],
-                intensity=_energy_level_at(beat_time, energy_windows),
-                metadata={"beat_index": i},
-            )
+        energy_level = _energy_level_at(beat_time, energy_windows)
+        stride = _stride_for_energy(energy_level, settings)
+        if i % stride != 0:
+            continue
+
+        player = PLAYERS[len(prompts) % len(PLAYERS)]
+        candidate_moves = list(settings.moves)
+        if seed is None:
+            rotation = (i + len(prompts)) % len(candidate_moves)
+            candidate_moves = candidate_moves[rotation:] + candidate_moves[:rotation]
+        else:
+            rng.shuffle(candidate_moves)
+
+        move = _choose_move(candidate_moves, player, beat_time, player_last_prompt, settings)
+        prompt = MovementPrompt(
+            time_seconds=beat_time,
+            player=player,
+            move=move,
+            intensity=energy_level,
+            metadata={"beat_index": i, "difficulty": difficulty, "stride": stride},
         )
+        prompts.append(
+            prompt
+        )
+        player_last_prompt[player] = prompt
     return prompts
 
 
-def generate_course(analysis: dict[str, Any]) -> dict[str, Any]:
+def generate_course(
+    analysis: dict[str, Any],
+    difficulty: str = "normal",
+    seed: int | None = None,
+) -> dict[str, Any]:
     """Generate a course document from a song analysis dict.
 
     Parameters
@@ -135,10 +246,8 @@ def generate_course(analysis: dict[str, Any]) -> dict[str, Any]:
         and ``events`` fields.  Each event carries ``time_seconds``,
         ``player``, ``move``, and ``intensity``.
     """
-    prompts = beats_to_prompts(
-        analysis["beats"],
-        analysis["energy_windows"],
-    )
+    _settings_for(difficulty)
+    prompts = beats_to_prompts(analysis["beats"], analysis["energy_windows"], difficulty, seed)
     events = [
         {
             "time_seconds": p.time_seconds,
@@ -150,6 +259,7 @@ def generate_course(analysis: dict[str, Any]) -> dict[str, Any]:
     ]
     return {
         "version": "1.0.0",
+        "difficulty": difficulty,
         "song": {
             "id": analysis["source"],
             "bpm": analysis["bpm"],
