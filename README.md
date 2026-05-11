@@ -47,6 +47,7 @@ Initial schemas are defined in `docs/schemas/`:
 
 - `course.schema.json`: generated course data consumed by the game.
 - `camera-frame.schema.json`: frame-level camera tracking output.
+- `camera-action.schema.json`: sparse movement actions consumed by the game.
 
 ## Local development guidance
 
@@ -59,11 +60,14 @@ Initial schemas are defined in `docs/schemas/`:
 ### Suggested setup flow
 
 1. Clone the repository.
-2. Create Python virtual environments for each service under `services/`.
-3. Install service dependencies (MediaPipe/OpenCV for camera input, librosa for song analyzer).
+2. Run `tools/setup-python-services.sh` to create Python virtual environments
+   and install service dependencies.
 4. Place local test tracks under `songs/`.
 5. Use `courses/samples/` for hand-authored fixtures and `courses/generated/` for analyzer output.
-6. Open `game/godot-project/` in Godot 4 and wire service outputs into prototype gameplay scenes.
+6. Run `tools/run-camera-service.sh` to serve camera action events.
+7. Open `game/godot-project/` in Godot 4 and run the default scene.
+
+For living-room setup details, see `docs/living_room_demo_runbook.md`.
 
 ### Notes
 

@@ -17,3 +17,23 @@ This project now includes a minimal Godot 4 runtime foundation that:
 2. Run the default scene (`res://scenes/main.tscn`).
 
 By default, it uses `res://data/sample_course.json` and `res://audio/sample_tone.wav`.
+
+## Camera input
+
+The runtime connects to `ws://127.0.0.1:8765` by default and maps camera actions
+to the existing prompt names:
+
+| Camera action | Runtime move |
+|---|---|
+| `jump` | `jump` |
+| `duck` | `duck` |
+| `dodge_left` / `leanLeft` | `dodge_left` |
+| `dodge_right` / `leanRight` | `dodge_right` |
+
+Start the camera service before launching the scene:
+
+```bash
+../../tools/run-camera-service.sh
+```
+
+Keyboard controls remain enabled as fallback while camera input is connected.

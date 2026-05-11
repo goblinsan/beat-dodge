@@ -16,8 +16,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-import cv2
 import numpy as np
+
+try:
+    import cv2
+except ImportError:  # pragma: no cover - exercised only without OpenCV installed
+    cv2 = None  # type: ignore[assignment]
 
 #: Ordered mapping of human-readable name → MediaPipe BlazePose landmark index.
 #: Indices follow the standard 33-point BlazePose topology and are stable
@@ -131,6 +135,9 @@ class PoseDetector:
 
         left_half = frame[:, :mid]
         right_half = frame[:, mid:]
+
+        if cv2 is None:
+            raise RuntimeError("OpenCV is required to run pose detection.")
 
         left_rgb = cv2.cvtColor(left_half, cv2.COLOR_BGR2RGB)
         right_rgb = cv2.cvtColor(right_half, cv2.COLOR_BGR2RGB)

@@ -46,6 +46,10 @@ text = "Timeline: 0.00s"
 layout_mode = 2
 text = "Loading course…"
 
+[node name="CameraStatusLabel" type="Label" parent="UI/Header"]
+layout_mode = 2
+text = "Camera: connecting"
+
 [node name="Lanes" type="HBoxContainer" parent="UI"]
 layout_mode = 2
 size_flags_vertical = 3

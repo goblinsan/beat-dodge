@@ -18,6 +18,10 @@ const OK_SCORE := 250
 @export var good_window_seconds: float = 0.3
 @export var early_late_window_seconds: float = 0.5
 @export var feedback_hold_seconds: float = 0.9
+@export var camera_input_enabled: bool = true
+@export var camera_websocket_url: String = "ws://127.0.0.1:8765"
+@export var camera_min_confidence: float = 0.55
+@export var camera_reconnect_seconds: float = 2.0
 
 @onready var audio_player: AudioStreamPlayer = $AudioPlayer
 @onready var lane_1_prompt_layer: Control = %Lane1PromptLayer
@@ -32,6 +36,7 @@ const OK_SCORE := 250
 @onready var lane_2_feedback_label: Label = %Lane2FeedbackLabel
 @onready var timeline_label: Label = $UI/Header/TimelineLabel
 @onready var status_label: Label = $UI/Header/StatusLabel
+@onready var camera_status_label: Label = $UI/Header/CameraStatusLabel
 @onready var results_overlay: Control = %ResultsOverlay
 @onready var results_title_label: Label = %ResultsTitleLabel
 @onready var results_body_label: Label = %ResultsBodyLabel
@@ -45,6 +50,14 @@ var _start_ticks_msec: int = 0
 var _active_prompts: Array[Label] = []
 var _player_state: Dictionary = {}
 var _results_shown: bool = false
+var _camera_peer: WebSocketPeer = null
+var _next_camera_reconnect_msec: int = 0
+var _camera_connected: bool = false
+var _camera_player_status: Dictionary = {
+    PLAYER_1: {"visible": false, "calibrated": false, "confidence": 0.0},
+    PLAYER_2: {"visible": false, "calibrated": false, "confidence": 0.0},
+}
+var _paused: bool = false
 
 func _ready() -> void:
     _player_state = {
@@ -81,10 +94,17 @@ func _ready() -> void:
     _start_ticks_msec = Time.get_ticks_msec()
 
     _update_status_label()
+    _connect_camera()
     set_process(true)
     set_process_unhandled_input(true)
 
 func _process(_delta: float) -> void:
+    _poll_camera()
+    if _paused:
+        _update_status_label()
+        _update_camera_status_label()
+        return
+
     _timeline_seconds = _read_timeline_seconds()
     _spawn_due_prompts()
     _handle_missed_prompts()
@@ -93,18 +113,34 @@ func _process(_delta: float) -> void:
     _update_hud()
     _update_feedback_labels()
     _update_status_label()
+    _update_camera_status_label()
 
     if not _results_shown and _timeline_seconds >= _course_end_seconds and _all_prompts_resolved():
         _show_results()
 
 func _unhandled_input(event: InputEvent) -> void:
-    if _results_shown:
-        return
     if not (event is InputEventKey):
         return
 
     var key_event: InputEventKey = event
     if not key_event.pressed or key_event.echo:
+        return
+
+    var keycode := key_event.physical_keycode
+    if keycode == 0:
+        keycode = key_event.keycode
+
+    if keycode == KEY_R:
+        get_tree().reload_current_scene()
+        get_viewport().set_input_as_handled()
+        return
+
+    if keycode == KEY_ESCAPE or keycode == KEY_P:
+        _toggle_pause()
+        get_viewport().set_input_as_handled()
+        return
+
+    if _results_shown or _paused:
         return
 
     var action_event := _normalize_keyboard_action(key_event)
@@ -194,7 +230,7 @@ func _spawn_prompt(event: Dictionary, event_time: float) -> void:
         lane_layer = lane_2_prompt_layer
 
     var prompt := Label.new()
-    prompt.text = "%s  x%d" % [str(event.get("move", "move")), int(event.get("intensity", 1))]
+    prompt.text = "%s  x%d" % [_display_move_name(str(event.get("move", "move"))), int(event.get("intensity", 1))]
     prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     prompt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     prompt.position = Vector2(0.0, -30.0)
@@ -245,12 +281,15 @@ func _make_action_event(player_id: String, move: String) -> Dictionary:
 func _handle_action_input(action_event: Dictionary) -> void:
     var player_id := str(action_event.get("player", PLAYER_1))
     var move := str(action_event.get("move", ""))
+    var source := str(action_event.get("source", "keyboard"))
     var prompt := _find_closest_prompt(player_id)
     if prompt == null:
         return
 
     var expected_move := str(prompt.get_meta("move"))
     if expected_move != move:
+        if source == "camera":
+            return
         _resolve_prompt(prompt, player_id, "Miss", 0, Color(1.0, 0.45, 0.45), true)
         return
 
@@ -317,7 +356,7 @@ func _resolve_prompt(
 ) -> void:
     prompt.set_meta("resolved", true)
     prompt.set_meta("result_time", _timeline_seconds)
-    prompt.text = "%s • %s" % [str(prompt.get_meta("move", "")), judgment]
+    prompt.text = "%s • %s" % [_display_move_name(str(prompt.get_meta("move", ""))), judgment]
     prompt.modulate = color
 
     var state: Dictionary = _player_state.get(player_id, _make_player_state())
@@ -408,16 +447,164 @@ func _update_feedback_label(label: Label, state: Dictionary) -> void:
 
 func _update_status_label() -> void:
     if _results_shown:
-        status_label.text = "Round complete"
+        status_label.text = "Round complete • Press R to try again"
         return
 
-    status_label.text = "A/W/S/D vs Arrow Keys • Perfect ±%.0fms • Good ±%.0fms • Early/Late ±%.0fms • Events %d/%d" % [
+    if _paused:
+        status_label.text = "Paused • Press P or Esc to resume • Press R to restart"
+        return
+
+    status_label.text = "A/W/S/D vs Arrow Keys • P pause • R restart • Perfect ±%.0fms • Good ±%.0fms • Early/Late ±%.0fms • Events %d/%d" % [
         perfect_window_seconds * 1000.0,
         good_window_seconds * 1000.0,
         early_late_window_seconds * 1000.0,
         _spawn_index,
         _events.size(),
     ]
+
+func _toggle_pause() -> void:
+    if _results_shown:
+        return
+    _paused = not _paused
+    if audio_player.stream != null:
+        audio_player.stream_paused = _paused
+
+func _connect_camera() -> void:
+    if not camera_input_enabled:
+        return
+
+    _camera_peer = WebSocketPeer.new()
+    var err := _camera_peer.connect_to_url(camera_websocket_url)
+    if err != OK:
+        _camera_peer = null
+        _camera_connected = false
+        _next_camera_reconnect_msec = Time.get_ticks_msec() + int(camera_reconnect_seconds * 1000.0)
+
+func _poll_camera() -> void:
+    if not camera_input_enabled:
+        return
+
+    if _camera_peer == null:
+        if Time.get_ticks_msec() >= _next_camera_reconnect_msec:
+            _connect_camera()
+        return
+
+    _camera_peer.poll()
+    var state := _camera_peer.get_ready_state()
+    if state == WebSocketPeer.STATE_OPEN:
+        _camera_connected = true
+        while _camera_peer.get_available_packet_count() > 0:
+            var packet := _camera_peer.get_packet()
+            _handle_camera_packet(packet.get_string_from_utf8())
+    elif state == WebSocketPeer.STATE_CLOSED:
+        _camera_connected = false
+        _camera_peer = null
+        _next_camera_reconnect_msec = Time.get_ticks_msec() + int(camera_reconnect_seconds * 1000.0)
+
+func _handle_camera_packet(packet_text: String) -> void:
+    var parsed: Variant = JSON.parse_string(packet_text)
+    if typeof(parsed) != TYPE_DICTIONARY:
+        return
+
+    var payload: Dictionary = parsed
+    var players = payload.get("players", [])
+    if str(payload.get("type", "")) == "status":
+        _update_camera_player_status(players)
+        return
+
+    if _paused or _results_shown:
+        return
+
+    for player in players:
+        if not (player is Dictionary):
+            continue
+        var player_data: Dictionary = player
+        var confidence := float(player_data.get("confidence", 0.0))
+        if confidence < camera_min_confidence:
+            continue
+
+        var player_id := _camera_player_id_to_runtime(int(player_data.get("id", 0)))
+        if player_id.is_empty():
+            continue
+
+        var move := _camera_action_to_move(str(player_data.get("action", "")))
+        if move.is_empty():
+            continue
+
+        _handle_action_input({
+            "player": player_id,
+            "move": move,
+            "source": "camera",
+            "time_seconds": _timeline_seconds,
+            "confidence": confidence,
+        })
+
+func _update_camera_player_status(players) -> void:
+    for player in players:
+        if not (player is Dictionary):
+            continue
+        var player_data: Dictionary = player
+        var player_id := _camera_player_id_to_runtime(int(player_data.get("id", 0)))
+        if player_id.is_empty():
+            continue
+
+        _camera_player_status[player_id] = {
+            "visible": bool(player_data.get("visible", false)),
+            "calibrated": bool(player_data.get("calibrated", false)),
+            "confidence": float(player_data.get("confidence", 0.0)),
+        }
+
+func _camera_player_id_to_runtime(player_id: int) -> String:
+    if player_id == 1:
+        return PLAYER_1
+    if player_id == 2:
+        return PLAYER_2
+    return ""
+
+func _camera_action_to_move(action: String) -> String:
+    if action in ["jump", "duck", "dodge_left", "dodge_right"]:
+        return action
+    if action == "leanLeft":
+        return "dodge_left"
+    if action == "leanRight":
+        return "dodge_right"
+    return ""
+
+func _update_camera_status_label() -> void:
+    if not camera_input_enabled:
+        camera_status_label.text = "Camera input: off"
+        return
+
+    var connection_text := "connecting"
+    if _camera_connected:
+        connection_text = "connected"
+
+    camera_status_label.text = "Camera: %s • P1 %s • P2 %s" % [
+        connection_text,
+        _format_camera_player_status(PLAYER_1),
+        _format_camera_player_status(PLAYER_2),
+    ]
+
+func _format_camera_player_status(player_id: String) -> String:
+    var status: Dictionary = _camera_player_status.get(player_id, {})
+    if not bool(status.get("visible", false)):
+        return "lost"
+    if not bool(status.get("calibrated", false)):
+        return "calibrating"
+    return "ready %.0f%%" % (float(status.get("confidence", 0.0)) * 100.0)
+
+func _display_move_name(move: String) -> String:
+    match move:
+        "jump":
+            return "Jump"
+        "duck":
+            return "Duck"
+        "dodge_left":
+            return "Move Left"
+        "dodge_right":
+            return "Move Right"
+        _:
+            return move.capitalize()
 
 func _show_results() -> void:
     _results_shown = true

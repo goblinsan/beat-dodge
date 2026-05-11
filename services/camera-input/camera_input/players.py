@@ -30,12 +30,16 @@ class PlayerData:
         Normalised horizontal body-centre position (0–1, full frame).
     y:
         Normalised vertical body-centre position (0–1, full frame).
+    pose:
+        Raw pose landmarks for this player, when visible.  This is optional so
+        callers that only need frame telemetry can ignore it.
     """
 
     player_id: int
     visible: bool
     x: float
     y: float
+    pose: PoseResult | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -103,13 +107,13 @@ def assign_players(
 
     if left_pose is not None:
         x, y = _body_center(left_pose)
-        players.append(PlayerData(player_id=1, visible=True, x=x, y=y))
+        players.append(PlayerData(player_id=1, visible=True, x=x, y=y, pose=left_pose))
     else:
         players.append(PlayerData(player_id=1, visible=False, x=0.0, y=0.0))
 
     if right_pose is not None:
         x, y = _body_center(right_pose)
-        players.append(PlayerData(player_id=2, visible=True, x=x, y=y))
+        players.append(PlayerData(player_id=2, visible=True, x=x, y=y, pose=right_pose))
     else:
         players.append(PlayerData(player_id=2, visible=False, x=0.0, y=0.0))
 
