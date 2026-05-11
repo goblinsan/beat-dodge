@@ -36,7 +36,7 @@ const OK_SCORE := 250
 @onready var results_title_label: Label = %ResultsTitleLabel
 @onready var results_body_label: Label = %ResultsBodyLabel
 
-var _events: Array = []
+var _events: Array[Dictionary] = []
 var _spawn_index: int = 0
 var _timeline_seconds: float = 0.0
 var _song_duration_seconds: float = 0.0
@@ -63,7 +63,10 @@ func _ready() -> void:
         set_process_unhandled_input(false)
         return
 
-    _events = course.get("events", [])
+    _events.clear()
+    for event_data in course.get("events", []):
+        if event_data is Dictionary:
+            _events.append(event_data)
     _events.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
         return float(a.get("time_seconds", 0.0)) < float(b.get("time_seconds", 0.0))
     )
@@ -314,7 +317,7 @@ func _resolve_prompt(
 ) -> void:
     prompt.set_meta("resolved", true)
     prompt.set_meta("result_time", _timeline_seconds)
-    prompt.text = "%s • %s" % [str(prompt.get_meta("move", "move")), judgment]
+    prompt.text = "%s • %s" % [str(prompt.get_meta("move", "")), judgment]
     prompt.modulate = color
 
     var state: Dictionary = _player_state.get(player_id, _make_player_state())
@@ -408,7 +411,13 @@ func _update_status_label() -> void:
         status_label.text = "Round complete"
         return
 
-    status_label.text = "A/W/S/D vs Arrow Keys • Perfect ±150ms • Good ±300ms • Early/Late ±500ms • Events %d/%d" % [_spawn_index, _events.size()]
+    status_label.text = "A/W/S/D vs Arrow Keys • Perfect ±%.0fms • Good ±%.0fms • Early/Late ±%.0fms • Events %d/%d" % [
+        perfect_window_seconds * 1000.0,
+        good_window_seconds * 1000.0,
+        early_late_window_seconds * 1000.0,
+        _spawn_index,
+        _events.size(),
+    ]
 
 func _show_results() -> void:
     _results_shown = true
