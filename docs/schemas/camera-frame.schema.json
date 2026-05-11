@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beat-dodge.dev/schemas/camera-frame.schema.json",
+  "title": "Beat Dodge Camera Frame",
+  "description": "Per-frame player tracking data emitted by the camera input service.",
+  "type": "object",
+  "required": ["timestamp_ms", "players"],
+  "properties": {
+    "timestamp_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "players": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["player_id", "visible", "x", "y"],
+        "properties": {
+          "player_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2
+          },
+          "visible": { "type": "boolean" },
+          "x": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
