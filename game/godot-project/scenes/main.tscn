@@ -82,6 +82,7 @@ text = "Combo: 0  •  Misses: 0"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
+theme_override_font_sizes/font_size = 26
 horizontal_alignment = 1
 
 [node name="LaneBindingsLabel" type="Label" parent="UI/Lanes/LanePlayer1/LaneContent"]
@@ -121,6 +122,7 @@ text = "Combo: 0  •  Misses: 0"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
+theme_override_font_sizes/font_size = 26
 horizontal_alignment = 1
 
 [node name="LaneBindingsLabel" type="Label" parent="UI/Lanes/LanePlayer2/LaneContent"]
@@ -132,6 +134,46 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 520)
 layout_mode = 2
 size_flags_vertical = 3
+
+[node name="ReadyOverlay" type="CenterContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ReadyPanel" type="PanelContainer" parent="ReadyOverlay"]
+layout_mode = 2
+custom_minimum_size = Vector2(560, 0)
+
+[node name="ReadyMargin" type="MarginContainer" parent="ReadyOverlay/ReadyPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="ReadyContent" type="VBoxContainer" parent="ReadyOverlay/ReadyPanel/ReadyMargin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="ReadyTitleLabel" type="Label" parent="ReadyOverlay/ReadyPanel/ReadyMargin/ReadyContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 34
+horizontal_alignment = 1
+text = "Stand in your lane"
+
+[node name="ReadyBodyLabel" type="Label" parent="ReadyOverlay/ReadyPanel/ReadyMargin/ReadyContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+autowrap_mode = 3
+text = ""
 
 [node name="ResultsOverlay" type="CenterContainer" parent="."]
 unique_name_in_owner = true

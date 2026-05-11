@@ -2,6 +2,9 @@ extends Control
 
 const PLAYER_1 := "player_1"
 const PLAYER_2 := "player_2"
+const ROUND_SETUP := "setup"
+const ROUND_COUNTDOWN := "countdown"
+const ROUND_PLAYING := "playing"
 
 const PERFECT_SCORE := 1000
 const GOOD_SCORE := 500
@@ -18,6 +21,9 @@ const OK_SCORE := 250
 @export var good_window_seconds: float = 0.3
 @export var early_late_window_seconds: float = 0.5
 @export var feedback_hold_seconds: float = 0.9
+@export var pre_round_enabled: bool = true
+@export var pre_round_countdown_seconds: float = 3.0
+@export var pre_round_require_camera_ready: bool = true
 @export var camera_input_enabled: bool = true
 @export var camera_websocket_url: String = "ws://127.0.0.1:8765"
 @export var camera_min_confidence: float = 0.55
@@ -39,6 +45,9 @@ const OK_SCORE := 250
 @onready var timeline_label: Label = $UI/Header/TimelineLabel
 @onready var status_label: Label = $UI/Header/StatusLabel
 @onready var camera_status_label: Label = $UI/Header/CameraStatusLabel
+@onready var ready_overlay: Control = %ReadyOverlay
+@onready var ready_title_label: Label = %ReadyTitleLabel
+@onready var ready_body_label: Label = %ReadyBodyLabel
 @onready var results_overlay: Control = %ResultsOverlay
 @onready var results_title_label: Label = %ResultsTitleLabel
 @onready var results_body_label: Label = %ResultsBodyLabel
@@ -52,6 +61,8 @@ var _start_ticks_msec: int = 0
 var _active_prompts: Array[Label] = []
 var _player_state: Dictionary = {}
 var _results_shown: bool = false
+var _round_state: String = ROUND_SETUP
+var _countdown_started_msec: int = 0
 var _camera_peer: WebSocketPeer = null
 var _next_camera_reconnect_msec: int = 0
 var _camera_connection_state: String = "disconnected"
@@ -71,6 +82,7 @@ func _ready() -> void:
     _configure_lane_styles()
     _update_hud()
     results_overlay.visible = false
+    ready_overlay.visible = false
 
     var course: Dictionary = _load_course(course_path)
     if course.is_empty():
@@ -92,14 +104,16 @@ func _ready() -> void:
     _course_end_seconds = max(_song_duration_seconds, _last_event_time() + early_late_window_seconds + prompt_cleanup_delay)
 
     _load_music(song_data.get("id", ""))
-    if audio_player.stream != null:
-        audio_player.play()
-    _start_ticks_msec = Time.get_ticks_msec()
+    _timeline_seconds = 0.0
 
     _update_status_label()
+    _update_ready_overlay()
     _connect_camera()
     set_process(true)
     set_process_unhandled_input(true)
+
+    if not pre_round_enabled:
+        _start_round()
 
 func _exit_tree() -> void:
     if audio_player != null:
@@ -112,6 +126,27 @@ func _exit_tree() -> void:
 func _process(_delta: float) -> void:
     _poll_camera()
     _expire_stale_camera_status()
+
+    if _round_state == ROUND_SETUP:
+        _timeline_seconds = 0.0
+        _update_hud()
+        _update_status_label()
+        _update_camera_status_label()
+        _update_ready_overlay()
+        if _camera_ready_for_round():
+            _begin_countdown()
+        return
+
+    if _round_state == ROUND_COUNTDOWN:
+        _timeline_seconds = 0.0
+        _update_hud()
+        _update_status_label()
+        _update_camera_status_label()
+        _update_ready_overlay()
+        if _countdown_seconds_remaining() <= 0.0:
+            _start_round()
+        return
+
     if _paused:
         _update_status_label()
         _update_camera_status_label()
@@ -147,12 +182,17 @@ func _unhandled_input(event: InputEvent) -> void:
         get_viewport().set_input_as_handled()
         return
 
+    if (keycode == KEY_SPACE or keycode == KEY_ENTER) and _round_state != ROUND_PLAYING:
+        _begin_countdown()
+        get_viewport().set_input_as_handled()
+        return
+
     if keycode == KEY_ESCAPE or keycode == KEY_P:
         _toggle_pause()
         get_viewport().set_input_as_handled()
         return
 
-    if _results_shown or _paused:
+    if _results_shown or _paused or _round_state != ROUND_PLAYING:
         return
 
     var action_event := _normalize_keyboard_action(key_event)
@@ -223,7 +263,9 @@ func _load_music(song_id: String) -> void:
 func _read_timeline_seconds() -> float:
     if audio_player.playing:
         return audio_player.get_playback_position()
-    return float(Time.get_ticks_msec() - _start_ticks_msec) / 1000.0
+    if _round_state == ROUND_PLAYING:
+        return float(Time.get_ticks_msec() - _start_ticks_msec) / 1000.0
+    return 0.0
 
 func _spawn_due_prompts() -> void:
     while _spawn_index < _events.size():
@@ -247,6 +289,7 @@ func _spawn_prompt(event: Dictionary, event_time: float) -> void:
     prompt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     prompt.position = Vector2(0.0, -30.0)
     prompt.custom_minimum_size = Vector2(0.0, 30.0)
+    prompt.add_theme_font_size_override("font_size", 24)
     prompt.add_theme_color_override("font_color", Color(1.0, 0.98, 0.85))
     prompt.add_theme_color_override("font_outline_color", Color(0.05, 0.08, 0.12))
     prompt.add_theme_constant_override("outline_size", 3)
@@ -463,6 +506,14 @@ func _update_status_label() -> void:
         status_label.text = "Round complete • Press R to try again"
         return
 
+    if _round_state == ROUND_SETUP:
+        status_label.text = "Stand in your lane • Press Space to start with keyboard"
+        return
+
+    if _round_state == ROUND_COUNTDOWN:
+        status_label.text = "Starting in %d" % max(1, int(ceil(_countdown_seconds_remaining())))
+        return
+
     if _paused:
         status_label.text = "Paused • Press P or Esc to resume • Press R to restart"
         return
@@ -476,7 +527,7 @@ func _update_status_label() -> void:
     ]
 
 func _toggle_pause() -> void:
-    if _results_shown:
+    if _results_shown or _round_state != ROUND_PLAYING:
         return
     _paused = not _paused
     if audio_player.stream != null:
@@ -527,7 +578,7 @@ func _handle_camera_packet(packet_text: String) -> void:
         _update_camera_player_status(players)
         return
 
-    if _paused or _results_shown:
+    if _paused or _results_shown or _round_state != ROUND_PLAYING:
         return
 
     for player in players:
@@ -635,11 +686,70 @@ func _display_move_name(move: String) -> String:
         _:
             return move.capitalize()
 
+func _camera_ready_for_round() -> bool:
+    if not camera_input_enabled or not pre_round_require_camera_ready:
+        return true
+    return _camera_player_ready(PLAYER_1) and _camera_player_ready(PLAYER_2)
+
+func _camera_player_ready(player_id: String) -> bool:
+    var status: Dictionary = _camera_player_status.get(player_id, {})
+    return bool(status.get("visible", false)) and bool(status.get("calibrated", false))
+
+func _begin_countdown() -> void:
+    if _round_state == ROUND_PLAYING:
+        return
+    _round_state = ROUND_COUNTDOWN
+    _countdown_started_msec = Time.get_ticks_msec()
+    ready_overlay.visible = true
+    _update_ready_overlay()
+
+func _start_round() -> void:
+    _round_state = ROUND_PLAYING
+    ready_overlay.visible = false
+    _start_ticks_msec = Time.get_ticks_msec()
+    _timeline_seconds = 0.0
+    if audio_player.stream != null:
+        audio_player.play()
+
+func _countdown_seconds_remaining() -> float:
+    if _round_state != ROUND_COUNTDOWN:
+        return pre_round_countdown_seconds
+    var elapsed := float(Time.get_ticks_msec() - _countdown_started_msec) / 1000.0
+    return max(0.0, pre_round_countdown_seconds - elapsed)
+
+func _update_ready_overlay() -> void:
+    if _round_state == ROUND_PLAYING:
+        ready_overlay.visible = false
+        return
+
+    ready_overlay.visible = true
+    if _round_state == ROUND_COUNTDOWN:
+        ready_title_label.text = "%d" % max(1, int(ceil(_countdown_seconds_remaining())))
+        ready_body_label.text = "Get ready"
+        return
+
+    ready_title_label.text = "Stand in your lane"
+    if camera_input_enabled and pre_round_require_camera_ready:
+        ready_body_label.text = "Player 1 left: %s\nPlayer 2 right: %s\nPress Space to start anyway" % [
+            _format_ready_player_status(PLAYER_1),
+            _format_ready_player_status(PLAYER_2),
+        ]
+    else:
+        ready_body_label.text = "Press Space to start"
+
+func _format_ready_player_status(player_id: String) -> String:
+    var status: Dictionary = _camera_player_status.get(player_id, {})
+    if not bool(status.get("visible", false)):
+        return "step into view"
+    if not bool(status.get("calibrated", false)):
+        return "stand still"
+    return "ready"
+
 func _show_results() -> void:
     _results_shown = true
     results_overlay.visible = true
     results_title_label.text = _build_results_title()
-    results_body_label.text = "%s\n\n%s" % [
+    results_body_label.text = "%s\n\n%s\n\nPress R to try again" % [
         _format_player_results(PLAYER_1, "Player 1"),
         _format_player_results(PLAYER_2, "Player 2"),
     ]

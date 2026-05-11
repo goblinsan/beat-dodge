@@ -228,6 +228,8 @@ Implemented notes:
 
 ## Phase 4 - Minimal Kid-Friendly Play Flow
 
+Status: implemented in the current working tree.
+
 Goal: reduce friction for a living-room playtest.
 
 Files likely touched:
@@ -259,6 +261,17 @@ Acceptance criteria:
   docs.
 - A parent can restart a failed setup or round from the keyboard.
 - A full sample round can be played repeatedly without restarting the editor.
+
+Implemented notes:
+
+- The round now starts in a setup overlay instead of playing immediately.
+- When camera readiness is required, the setup overlay waits for both players
+  to be visible and calibrated, with Space/Enter available as a keyboard
+  fallback start.
+- A countdown runs before audio playback and prompt spawning begin.
+- Pause/restart/try-again controls are available through P/Esc and R.
+- Prompt names use kid-readable labels and hit feedback is larger on both
+  lanes.
 
 ## Phase 5 - Course Generation Needed For Play
 
