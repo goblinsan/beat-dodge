@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beat-dodge.dev/schemas/course.schema.json",
+  "title": "Beat Dodge Course",
+  "description": "Timeline data generated from song analysis and consumed by gameplay.",
+  "type": "object",
+  "required": ["version", "song", "events"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema-compatible course format version."
+    },
+    "song": {
+      "type": "object",
+      "required": ["id", "bpm", "duration_seconds"],
+      "properties": {
+        "id": { "type": "string" },
+        "bpm": { "type": "number", "exclusiveMinimum": 0 },
+        "duration_seconds": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["time_seconds", "lane", "intensity"],
+        "properties": {
+          "time_seconds": { "type": "number", "minimum": 0 },
+          "lane": {
+            "type": "string",
+            "enum": ["left", "center", "right"]
+          },
+          "intensity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
