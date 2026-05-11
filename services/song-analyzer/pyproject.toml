@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "song-analyzer"
+version = "0.1.0"
+description = "Song analysis service: extracts BPM, beats, duration, and energy windows from audio files."
+requires-python = ">=3.11"
+dependencies = [
+    "librosa>=0.10",
+    "soundfile>=0.12",
+    "numpy>=1.24",
+]
+
+[project.scripts]
+analyze-song = "song_analyzer.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
