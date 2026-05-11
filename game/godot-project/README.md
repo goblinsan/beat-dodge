@@ -6,7 +6,10 @@ This project now includes a minimal Godot 4 runtime foundation that:
 - loads/plays a song file (`music_path` or `song.id` from the course),
 - advances a synchronized timeline,
 - renders two player lanes, and
-- spawns/moves movement prompts on those lanes.
+- spawns/moves movement prompts on those lanes,
+- supports two-player keyboard fallback (`A/W/S/D` and arrow keys),
+- scores prompts with Perfect/Good/Early/Late/Miss timing windows, and
+- shows per-player combos plus end-of-round results.
 
 ## Open and run
 
