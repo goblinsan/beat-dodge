@@ -62,10 +62,22 @@ Initial schemas are defined in `docs/schemas/`:
 1. Clone the repository.
 2. Run `tools/setup-python-services.sh` to create Python virtual environments
    and install service dependencies.
-4. Place local test tracks under `songs/`.
-5. Use `courses/samples/` for hand-authored fixtures and `courses/generated/` for analyzer output.
-6. Run `tools/run-camera-service.sh` to serve camera action events.
-7. Open `game/godot-project/` in Godot 4 and run the default scene.
+3. Place local test tracks under `songs/`.
+4. Use `courses/samples/` for hand-authored fixtures and `courses/generated/`
+   for analyzer output.
+5. Run `tools/run-camera-service.sh` to serve camera action events.
+6. Open `game/godot-project/` in Godot 4 and run the default scene.
+
+### Living-room demo
+
+After installing dependencies and Godot 4, run:
+
+```bash
+tools/run-living-room-demo.sh
+```
+
+This starts the camera WebSocket service, opens the Godot project, and keeps
+keyboard fallback enabled.
 
 For living-room setup details, see `docs/living_room_demo_runbook.md`.
 

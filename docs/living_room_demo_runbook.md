@@ -13,16 +13,23 @@
 tools/setup-python-services.sh
 ```
 
-## Start Camera Input
+## One-Command Demo
+
+```bash
+tools/run-living-room-demo.sh
+```
+
+This starts the camera service and opens the Godot project. Keep both players
+standing still in their lanes for the first second or two so the service can
+calibrate their standing baseline.
+
+## Manual Launch
+
+Start camera input:
 
 ```bash
 tools/run-camera-service.sh
 ```
-
-Keep both players standing still in their lanes for the first second or two so
-the service can calibrate their standing baseline.
-
-## Start The Game
 
 Open `game/godot-project/` in Godot 4 and run the main scene.
 

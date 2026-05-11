@@ -324,6 +324,8 @@ Implemented notes:
 
 ## Phase 6 - One-Command Local Demo
 
+Status: implemented in the current working tree.
+
 Goal: make the project runnable without remembering service internals.
 
 Files likely touched:
@@ -362,6 +364,22 @@ Acceptance criteria:
   demo.
 - The commands do not require editing source files.
 - Local songs remain uncommitted by default.
+
+Implemented notes:
+
+- `tools/setup-python-services.sh` creates both Python service environments
+  with Python 3.11+.
+- `tools/generate-course.sh` wraps course generation with optional output path
+  and generator arguments.
+- `tools/run-camera-service.sh` starts camera WebSocket mode with a default
+  two-second calibration period.
+- `tools/run-living-room-demo.sh` starts the camera service and opens the Godot
+  project in one command.
+- `.github/workflows/ci.yml` runs both Python service test suites.
+- Root docs and the living-room runbook describe setup, launch, controls, and
+  troubleshooting.
+- `.gitignore` keeps local songs, virtualenvs, Python caches, and generated
+  courses out of git except the intentional sample course.
 
 ## Recommended Build Order
 

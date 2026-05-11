@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python-services:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - camera-input
+          - song-analyzer
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install service
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r services/${{ matrix.service }}/requirements.txt
+          python -m pip install -e services/${{ matrix.service }}
+
+      - name: Run tests
+        run: python -m pytest -q services/${{ matrix.service }}/tests
