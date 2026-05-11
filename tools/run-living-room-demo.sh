@@ -14,6 +14,9 @@ if ! command -v godot >/dev/null 2>&1; then
   exit 1
 fi
 
+export MPLCONFIGDIR="${MPLCONFIGDIR:-/tmp/beat-dodge-matplotlib}"
+mkdir -p "$MPLCONFIGDIR"
+
 cleanup() {
   if [[ -n "${CAMERA_PID:-}" ]]; then
     kill "$CAMERA_PID" >/dev/null 2>&1 || true

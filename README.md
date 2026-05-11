@@ -73,7 +73,7 @@ Initial schemas are defined in `docs/schemas/`:
 After installing dependencies and Godot 4, run:
 
 ```bash
-tools/run-living-room-demo.sh
+./run-living-room-demo.sh
 ```
 
 This starts the camera WebSocket service, opens the Godot project, and keeps

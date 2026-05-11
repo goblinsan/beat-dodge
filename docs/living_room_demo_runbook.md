@@ -16,7 +16,7 @@ tools/setup-python-services.sh
 ## One-Command Demo
 
 ```bash
-tools/run-living-room-demo.sh
+./run-living-room-demo.sh
 ```
 
 This starts the camera service and opens the Godot project. Keep both players
@@ -31,7 +31,8 @@ Start camera input:
 tools/run-camera-service.sh
 ```
 
-Open `game/godot-project/` in Godot 4 and run the main scene.
+Open `game/godot-project/` in Godot 4 and run the main scene. The equivalent
+tool command for the one-command demo is `tools/run-living-room-demo.sh`.
 
 The top camera status line should move from `connecting` to `connected`, then
 show each player as `calibrating` or `ready`.

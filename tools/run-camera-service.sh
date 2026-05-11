@@ -9,4 +9,7 @@ if [[ ! -x "$VENV_PY" ]]; then
   exit 1
 fi
 
+export MPLCONFIGDIR="${MPLCONFIGDIR:-/tmp/beat-dodge-matplotlib}"
+mkdir -p "$MPLCONFIGDIR"
+
 exec "$VENV_PY" -m camera_input.cli --websocket --debug --calibration-seconds 2 "$@"

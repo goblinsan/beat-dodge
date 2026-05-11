@@ -373,8 +373,9 @@ Implemented notes:
   and generator arguments.
 - `tools/run-camera-service.sh` starts camera WebSocket mode with a default
   two-second calibration period.
-- `tools/run-living-room-demo.sh` starts the camera service and opens the Godot
-  project in one command.
+- `./run-living-room-demo.sh` starts the camera service and opens the Godot
+  project in one command, with `tools/run-living-room-demo.sh` kept as the
+  underlying implementation.
 - `.github/workflows/ci.yml` runs both Python service test suites.
 - Root docs and the living-room runbook describe setup, launch, controls, and
   troubleshooting.
