@@ -1,0 +1,90 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/course_runtime.gd" id="1_mjs2w"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_mjs2w")
+
+[node name="AudioPlayer" type="AudioStreamPlayer" parent="."]
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0784314, 0.0980392, 0.164706, 1)
+
+[node name="UI" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 32.0
+offset_top = 24.0
+offset_right = -32.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="Header" type="VBoxContainer" parent="UI"]
+layout_mode = 2
+
+[node name="TimelineLabel" type="Label" parent="UI/Header"]
+layout_mode = 2
+text = "Timeline: 0.00s"
+
+[node name="StatusLabel" type="Label" parent="UI/Header"]
+layout_mode = 2
+text = "Loading course…"
+
+[node name="Lanes" type="HBoxContainer" parent="UI"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 20
+
+[node name="LanePlayer1" type="PanelContainer" parent="UI/Lanes"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="LaneContent" type="VBoxContainer" parent="UI/Lanes/LanePlayer1"]
+layout_mode = 2
+
+[node name="LaneLabel" type="Label" parent="UI/Lanes/LanePlayer1/LaneContent"]
+layout_mode = 2
+text = "Player 1"
+
+[node name="Lane1PromptLayer" type="Control" parent="UI/Lanes/LanePlayer1/LaneContent"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 520)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LanePlayer2" type="PanelContainer" parent="UI/Lanes"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="LaneContent" type="VBoxContainer" parent="UI/Lanes/LanePlayer2"]
+layout_mode = 2
+
+[node name="LaneLabel" type="Label" parent="UI/Lanes/LanePlayer2/LaneContent"]
+layout_mode = 2
+text = "Player 2"
+
+[node name="Lane2PromptLayer" type="Control" parent="UI/Lanes/LanePlayer2/LaneContent"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 520)
+layout_mode = 2
+size_flags_vertical = 3
