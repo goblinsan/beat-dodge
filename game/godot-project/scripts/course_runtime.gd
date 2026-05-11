@@ -22,6 +22,8 @@ const OK_SCORE := 250
 @export var camera_websocket_url: String = "ws://127.0.0.1:8765"
 @export var camera_min_confidence: float = 0.55
 @export var camera_reconnect_seconds: float = 2.0
+@export var camera_input_latency_offset_seconds: float = 0.0
+@export var camera_status_stale_seconds: float = 1.5
 
 @onready var audio_player: AudioStreamPlayer = $AudioPlayer
 @onready var lane_1_prompt_layer: Control = %Lane1PromptLayer
@@ -52,7 +54,8 @@ var _player_state: Dictionary = {}
 var _results_shown: bool = false
 var _camera_peer: WebSocketPeer = null
 var _next_camera_reconnect_msec: int = 0
-var _camera_connected: bool = false
+var _camera_connection_state: String = "disconnected"
+var _last_camera_packet_msec: int = 0
 var _camera_player_status: Dictionary = {
     PLAYER_1: {"visible": false, "calibrated": false, "confidence": 0.0},
     PLAYER_2: {"visible": false, "calibrated": false, "confidence": 0.0},
@@ -100,6 +103,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
     _poll_camera()
+    _expire_stale_camera_status()
     if _paused:
         _update_status_label()
         _update_camera_status_label()
@@ -282,7 +286,8 @@ func _handle_action_input(action_event: Dictionary) -> void:
     var player_id := str(action_event.get("player", PLAYER_1))
     var move := str(action_event.get("move", ""))
     var source := str(action_event.get("source", "keyboard"))
-    var prompt := _find_closest_prompt(player_id)
+    var input_time_seconds := float(action_event.get("time_seconds", _timeline_seconds))
+    var prompt := _find_closest_prompt(player_id, input_time_seconds)
     if prompt == null:
         return
 
@@ -294,7 +299,7 @@ func _handle_action_input(action_event: Dictionary) -> void:
         return
 
     var target_time := float(prompt.get_meta("target_time"))
-    var offset := _timeline_seconds - target_time
+    var offset := input_time_seconds - target_time
     var absolute_offset := absf(offset)
     if absolute_offset <= perfect_window_seconds:
         _resolve_prompt(prompt, player_id, "Perfect", PERFECT_SCORE, Color(0.45, 1.0, 0.68))
@@ -306,7 +311,7 @@ func _handle_action_input(action_event: Dictionary) -> void:
             label = "Early"
         _resolve_prompt(prompt, player_id, label, OK_SCORE, Color(0.65, 0.83, 1.0))
 
-func _find_closest_prompt(player_id: String) -> Label:
+func _find_closest_prompt(player_id: String, input_time_seconds: float) -> Label:
     var best_prompt: Label = null
     var best_offset := INF
 
@@ -319,7 +324,7 @@ func _find_closest_prompt(player_id: String) -> Label:
             continue
 
         var target_time := float(prompt.get_meta("target_time"))
-        var absolute_offset := absf(_timeline_seconds - target_time)
+        var absolute_offset := absf(input_time_seconds - target_time)
         if absolute_offset > early_late_window_seconds:
             continue
         if absolute_offset < best_offset:
@@ -473,11 +478,12 @@ func _connect_camera() -> void:
     if not camera_input_enabled:
         return
 
+    _camera_connection_state = "connecting"
     _camera_peer = WebSocketPeer.new()
     var err := _camera_peer.connect_to_url(camera_websocket_url)
     if err != OK:
         _camera_peer = null
-        _camera_connected = false
+        _camera_connection_state = "disconnected"
         _next_camera_reconnect_msec = Time.get_ticks_msec() + int(camera_reconnect_seconds * 1000.0)
 
 func _poll_camera() -> void:
@@ -492,12 +498,12 @@ func _poll_camera() -> void:
     _camera_peer.poll()
     var state := _camera_peer.get_ready_state()
     if state == WebSocketPeer.STATE_OPEN:
-        _camera_connected = true
+        _camera_connection_state = "connected"
         while _camera_peer.get_available_packet_count() > 0:
             var packet := _camera_peer.get_packet()
             _handle_camera_packet(packet.get_string_from_utf8())
     elif state == WebSocketPeer.STATE_CLOSED:
-        _camera_connected = false
+        _camera_connection_state = "disconnected"
         _camera_peer = null
         _next_camera_reconnect_msec = Time.get_ticks_msec() + int(camera_reconnect_seconds * 1000.0)
 
@@ -506,6 +512,7 @@ func _handle_camera_packet(packet_text: String) -> void:
     if typeof(parsed) != TYPE_DICTIONARY:
         return
 
+    _last_camera_packet_msec = Time.get_ticks_msec()
     var payload: Dictionary = parsed
     var players = payload.get("players", [])
     if str(payload.get("type", "")) == "status":
@@ -535,7 +542,7 @@ func _handle_camera_packet(packet_text: String) -> void:
             "player": player_id,
             "move": move,
             "source": "camera",
-            "time_seconds": _timeline_seconds,
+            "time_seconds": max(0.0, _timeline_seconds - camera_input_latency_offset_seconds),
             "confidence": confidence,
         })
 
@@ -575,15 +582,29 @@ func _update_camera_status_label() -> void:
         camera_status_label.text = "Camera input: off"
         return
 
-    var connection_text := "connecting"
-    if _camera_connected:
-        connection_text = "connected"
-
     camera_status_label.text = "Camera: %s • P1 %s • P2 %s" % [
-        connection_text,
+        _camera_connection_state,
         _format_camera_player_status(PLAYER_1),
         _format_camera_player_status(PLAYER_2),
     ]
+
+func _expire_stale_camera_status() -> void:
+    if not camera_input_enabled:
+        return
+    if _last_camera_packet_msec == 0:
+        return
+
+    var stale_after_msec := int(camera_status_stale_seconds * 1000.0)
+    if Time.get_ticks_msec() - _last_camera_packet_msec <= stale_after_msec:
+        return
+
+    _camera_connection_state = "disconnected"
+    if _camera_peer != null:
+        _camera_peer.close()
+        _camera_peer = null
+        _next_camera_reconnect_msec = Time.get_ticks_msec() + int(camera_reconnect_seconds * 1000.0)
+    _camera_player_status[PLAYER_1] = {"visible": false, "calibrated": false, "confidence": 0.0}
+    _camera_player_status[PLAYER_2] = {"visible": false, "calibrated": false, "confidence": 0.0}
 
 func _format_camera_player_status(player_id: String) -> String:
     var status: Dictionary = _camera_player_status.get(player_id, {})

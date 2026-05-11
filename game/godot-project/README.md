@@ -37,3 +37,13 @@ Start the camera service before launching the scene:
 ```
 
 Keyboard controls remain enabled as fallback while camera input is connected.
+
+Useful exported camera settings on the main scene:
+
+| Setting | Purpose |
+|---|---|
+| `camera_input_enabled` | Turns camera input on/off without disabling keyboard fallback |
+| `camera_websocket_url` | WebSocket endpoint, default `ws://127.0.0.1:8765` |
+| `camera_min_confidence` | Ignores low-confidence camera actions |
+| `camera_input_latency_offset_seconds` | Scores camera actions slightly earlier to compensate for camera/transport latency |
+| `camera_status_stale_seconds` | Marks camera/player status lost when events stop arriving |

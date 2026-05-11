@@ -171,6 +171,8 @@ Implemented notes:
 
 ## Phase 3 - Godot Camera Integration
 
+Status: implemented in the current working tree.
+
 Goal: route camera actions into the existing scoring path.
 
 Files likely touched:
@@ -209,6 +211,20 @@ Acceptance criteria:
   prompts.
 - Keyboard controls still work during the same run.
 - Camera disconnect shows a visible warning but does not break the round.
+
+Implemented notes:
+
+- `course_runtime.gd` connects to `camera_websocket_url` with `WebSocketPeer`
+  and reconnects after disconnects.
+- Camera action packets are parsed, confidence-filtered, mapped to runtime
+  player IDs and moves, then routed into `_handle_action_input` with
+  `source = "camera"`.
+- Keyboard fallback remains enabled during camera play.
+- Exported camera settings now include enablement, WebSocket URL, minimum
+  confidence, reconnect interval, input latency offset, and stale-status
+  timeout.
+- The gameplay HUD shows camera connection state plus P1/P2 lost,
+  calibrating, or ready status.
 
 ## Phase 4 - Minimal Kid-Friendly Play Flow
 
