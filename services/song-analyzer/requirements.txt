@@ -1,0 +1,9 @@
+# Runtime + dev dependencies for the song-analyzer service.
+# Install with: pip install -r requirements.txt
+
+librosa>=0.10
+soundfile>=0.12
+numpy>=1.24
+
+# Dev / test
+pytest>=7.4
