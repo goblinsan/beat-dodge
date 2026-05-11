@@ -23,15 +23,29 @@ pip install -e .
 
 ## Usage
 
+### Analyse a song (raw analysis JSON)
+
 ```bash
 # Print JSON to stdout
 analyze-song path/to/song.mp3
 
 # Write JSON to a file
-analyze-song path/to/song.mp3 --output courses/generated/my_course.json
+analyze-song path/to/song.mp3 --output analysis.json
+```
+
+### Generate a Beat Dodge course
+
+```bash
+# Print course JSON to stdout
+generate-course path/to/song.mp3
+
+# Write course JSON to a file
+generate-course path/to/song.mp3 --output courses/generated/my_course.json
 ```
 
 ## Output format
+
+### `analyze-song`
 
 ```json
 {
@@ -46,6 +60,30 @@ analyze-song path/to/song.mp3 --output courses/generated/my_course.json
   ]
 }
 ```
+
+### `generate-course`
+
+Produces a course document conforming to `docs/schemas/course.schema.json`.
+Each event targets one of the two players with a kid-friendly movement prompt
+at a beat-aligned timestamp.
+
+```json
+{
+  "version": "1.0.0",
+  "song": {
+    "id": "song.mp3",
+    "bpm": 128.0,
+    "duration_seconds": 212.5
+  },
+  "events": [
+    {"time_seconds": 0.511, "player": "player_1", "move": "dodge_left",  "intensity": 2},
+    {"time_seconds": 0.977, "player": "player_2", "move": "dodge_right", "intensity": 3},
+    {"time_seconds": 1.443, "player": "player_1", "move": "jump",        "intensity": 4}
+  ]
+}
+```
+
+Supported moves: `dodge_left`, `dodge_right`, `jump`, `duck`.
 
 ## Running tests
 

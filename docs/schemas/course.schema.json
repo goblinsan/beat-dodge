@@ -24,17 +24,24 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["time_seconds", "lane", "intensity"],
+        "required": ["time_seconds", "player", "move", "intensity"],
         "properties": {
           "time_seconds": { "type": "number", "minimum": 0 },
-          "lane": {
+          "player": {
             "type": "string",
-            "enum": ["left", "center", "right"]
+            "enum": ["player_1", "player_2"],
+            "description": "Which player this prompt targets."
+          },
+          "move": {
+            "type": "string",
+            "enum": ["dodge_left", "dodge_right", "jump", "duck"],
+            "description": "Kid-friendly movement action the player must perform."
           },
           "intensity": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 5
+            "maximum": 5,
+            "description": "Difficulty/energy level derived from song analysis (1 = low, 5 = high)."
           }
         },
         "additionalProperties": false
