@@ -101,6 +101,14 @@ func _ready() -> void:
     set_process(true)
     set_process_unhandled_input(true)
 
+func _exit_tree() -> void:
+    if audio_player != null:
+        audio_player.stop()
+        audio_player.stream = null
+    if _camera_peer != null:
+        _camera_peer.close()
+        _camera_peer = null
+
 func _process(_delta: float) -> void:
     _poll_camera()
     _expire_stale_camera_status()
