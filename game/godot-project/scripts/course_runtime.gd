@@ -4,6 +4,9 @@ extends Control
 @export_file("*.wav", "*.ogg", "*.mp3") var music_path: String = ""
 @export var prompt_lead_seconds: float = 2.0
 @export var lane_travel_pixels: float = 500.0
+@export var prompt_overshoot_ratio: float = 1.3
+@export var prompt_fade_seconds: float = 0.6
+@export var prompt_cleanup_delay: float = 0.7
 
 @onready var audio_player: AudioStreamPlayer = $AudioPlayer
 @onready var lane_1_prompt_layer: Control = %Lane1PromptLayer
@@ -38,9 +41,9 @@ func _ready() -> void:
     _song_duration_seconds = float(song_data.get("duration_seconds", 0.0))
 
     _load_music(song_data.get("id", ""))
-    _start_ticks_msec = Time.get_ticks_msec()
     if audio_player.stream != null:
         audio_player.play()
+    _start_ticks_msec = Time.get_ticks_msec()
 
     status_label.text = "Loaded %d prompts" % _events.size()
     set_process(true)
@@ -160,11 +163,11 @@ func _update_prompt_positions() -> void:
         var spawn_time := target_time - prompt_lead_seconds
         var progress := 1.0
         if prompt_lead_seconds > 0.0:
-            progress = clamp((_timeline_seconds - spawn_time) / prompt_lead_seconds, 0.0, 1.3)
+            progress = clamp((_timeline_seconds - spawn_time) / prompt_lead_seconds, 0.0, prompt_overshoot_ratio)
 
         prompt.position.y = lerp(-30.0, lane_travel_pixels, progress)
         if _timeline_seconds > target_time:
-            var fade := clamp((_timeline_seconds - target_time) / 0.6, 0.0, 1.0)
+            var fade := clamp((_timeline_seconds - target_time) / max(prompt_fade_seconds, 0.01), 0.0, 1.0)
             prompt.modulate.a = 1.0 - fade
 
 func _cleanup_finished_prompts() -> void:
@@ -174,7 +177,7 @@ func _cleanup_finished_prompts() -> void:
             continue
 
         var target_time := float(prompt.get_meta("target_time"))
-        if _timeline_seconds > target_time + 0.7:
+        if _timeline_seconds > target_time + prompt_cleanup_delay:
             prompt.queue_free()
         else:
             remaining.append(prompt)
