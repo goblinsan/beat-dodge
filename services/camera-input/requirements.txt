@@ -1,0 +1,9 @@
+# Runtime + dev dependencies for the camera-input service.
+# Install with: pip install -r requirements.txt
+
+mediapipe>=0.10.13,<0.11
+opencv-python>=4.8
+numpy>=1.24
+
+# Dev / test
+pytest>=7.4
