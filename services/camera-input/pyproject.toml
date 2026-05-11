@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "camera-input"
+version = "0.1.0"
+description = "Camera input service: captures webcam frames and emits player pose data using MediaPipe."
+requires-python = ">=3.11"
+dependencies = [
+    "mediapipe>=0.10.13,<0.11",
+    "opencv-python>=4.8",
+    "numpy>=1.24",
+]
+
+[project.scripts]
+capture-pose = "camera_input.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
