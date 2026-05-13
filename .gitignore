@@ -20,5 +20,9 @@ courses/generated/*
 !courses/generated/.gitkeep
 !courses/generated/sample_course.json
 
+# Logs
+*.log
+logs/
+
 # OS/editor noise
 .DS_Store
