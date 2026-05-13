@@ -10,6 +10,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_mjs2w")
+lane_travel_pixels = 650.0
+course_path = "res://data/03_the_fixer_course.json"
+music_path = "res://audio/03 The Fixer.ogg"
 
 [node name="AudioPlayer" type="AudioStreamPlayer" parent="."]
 
@@ -20,7 +23,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.0784314, 0.0980392, 0.164706, 1)
+color = Color(0.06, 0.10, 0.04, 1)
 
 [node name="UI" type="VBoxContainer" parent="."]
 layout_mode = 1
@@ -34,6 +37,91 @@ offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 16
+
+[node name="StatsBar" type="HBoxContainer" parent="UI"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="LanePlayer1" type="PanelContainer" parent="UI/StatsBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LaneContent" type="VBoxContainer" parent="UI/StatsBar/LanePlayer1"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="LaneLabel" type="Label" parent="UI/StatsBar/LanePlayer1/LaneContent"]
+layout_mode = 2
+text = "Player 1"
+
+[node name="Lane1ScoreLabel" type="Label" parent="UI/StatsBar/LanePlayer1/LaneContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Score: 0"
+
+[node name="Lane1ComboLabel" type="Label" parent="UI/StatsBar/LanePlayer1/LaneContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Combo: 0  •  Misses: 0"
+
+[node name="Lane1FeedbackLabel" type="Label" parent="UI/StatsBar/LanePlayer1/LaneContent"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+
+[node name="LaneBindingsLabel" type="Label" parent="UI/StatsBar/LanePlayer1/LaneContent"]
+layout_mode = 2
+text = "WASD  •  A left  D right  W jump  S duck"
+
+[node name="LanePlayer2" type="PanelContainer" parent="UI/StatsBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LaneContent" type="VBoxContainer" parent="UI/StatsBar/LanePlayer2"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="LaneLabel" type="Label" parent="UI/StatsBar/LanePlayer2/LaneContent"]
+layout_mode = 2
+text = "Player 2"
+
+[node name="Lane2ScoreLabel" type="Label" parent="UI/StatsBar/LanePlayer2/LaneContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Score: 0"
+
+[node name="Lane2ComboLabel" type="Label" parent="UI/StatsBar/LanePlayer2/LaneContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Combo: 0  •  Misses: 0"
+
+[node name="Lane2FeedbackLabel" type="Label" parent="UI/StatsBar/LanePlayer2/LaneContent"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+
+[node name="LaneBindingsLabel" type="Label" parent="UI/StatsBar/LanePlayer2/LaneContent"]
+layout_mode = 2
+text = "ARROWS  •  ← left  → right  ↑ jump  ↓ duck"
+
+[node name="SharedPath" type="Control" parent="UI"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 680)
+size_flags_vertical = 3
+clip_contents = true
+
+[node name="SharedPromptLayer" type="Control" parent="UI/SharedPath"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="Header" type="VBoxContainer" parent="UI"]
 layout_mode = 2
@@ -49,91 +137,6 @@ text = "Loading course…"
 [node name="CameraStatusLabel" type="Label" parent="UI/Header"]
 layout_mode = 2
 text = "Camera: connecting"
-
-[node name="Lanes" type="HBoxContainer" parent="UI"]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 20
-
-[node name="LanePlayer1" type="PanelContainer" parent="UI/Lanes"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="LaneContent" type="VBoxContainer" parent="UI/Lanes/LanePlayer1"]
-layout_mode = 2
-
-[node name="LaneLabel" type="Label" parent="UI/Lanes/LanePlayer1/LaneContent"]
-layout_mode = 2
-text = "Player 1"
-
-[node name="Lane1ScoreLabel" type="Label" parent="UI/Lanes/LanePlayer1/LaneContent"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Score: 0"
-
-[node name="Lane1ComboLabel" type="Label" parent="UI/Lanes/LanePlayer1/LaneContent"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Combo: 0  •  Misses: 0"
-
-[node name="Lane1FeedbackLabel" type="Label" parent="UI/Lanes/LanePlayer1/LaneContent"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 28)
-layout_mode = 2
-theme_override_font_sizes/font_size = 26
-horizontal_alignment = 1
-
-[node name="LaneBindingsLabel" type="Label" parent="UI/Lanes/LanePlayer1/LaneContent"]
-layout_mode = 2
-text = "Keyboard: A left • D right • W jump • S duck"
-
-[node name="Lane1PromptLayer" type="Control" parent="UI/Lanes/LanePlayer1/LaneContent"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 520)
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="LanePlayer2" type="PanelContainer" parent="UI/Lanes"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="LaneContent" type="VBoxContainer" parent="UI/Lanes/LanePlayer2"]
-layout_mode = 2
-
-[node name="LaneLabel" type="Label" parent="UI/Lanes/LanePlayer2/LaneContent"]
-layout_mode = 2
-text = "Player 2"
-
-[node name="Lane2ScoreLabel" type="Label" parent="UI/Lanes/LanePlayer2/LaneContent"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Score: 0"
-
-[node name="Lane2ComboLabel" type="Label" parent="UI/Lanes/LanePlayer2/LaneContent"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Combo: 0  •  Misses: 0"
-
-[node name="Lane2FeedbackLabel" type="Label" parent="UI/Lanes/LanePlayer2/LaneContent"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 28)
-layout_mode = 2
-theme_override_font_sizes/font_size = 26
-horizontal_alignment = 1
-
-[node name="LaneBindingsLabel" type="Label" parent="UI/Lanes/LanePlayer2/LaneContent"]
-layout_mode = 2
-text = "Keyboard: ← left • → right • ↑ jump • ↓ duck"
-
-[node name="Lane2PromptLayer" type="Control" parent="UI/Lanes/LanePlayer2/LaneContent"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 520)
-layout_mode = 2
-size_flags_vertical = 3
 
 [node name="ReadyOverlay" type="CenterContainer" parent="."]
 unique_name_in_owner = true

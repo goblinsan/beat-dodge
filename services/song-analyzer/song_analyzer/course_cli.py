@@ -52,6 +52,11 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help="Optional deterministic seed for move selection.",
     )
+    parser.add_argument(
+        "--song-id",
+        default=None,
+        help="Optional song id/path to store in the generated course JSON.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -62,6 +67,8 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(1)
 
     course = generate_course(analysis, difficulty=args.difficulty, seed=args.seed)
+    if args.song_id:
+        course["song"]["id"] = args.song_id
     output = json.dumps(course, indent=2)
 
     if args.output:
